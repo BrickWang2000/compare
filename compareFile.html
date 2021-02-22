@@ -1,0 +1,287 @@
+<html>
+<head>
+    <title>compare 1</title>
+    <script src="./jquery3.5.1.js"></script>
+    <script src="./md5.js"></script>
+    <style>
+        .del {
+            text-decoration-line: line-through;
+            background: #c86464;
+        }
+
+        .del_a {
+            background: #ffff96;
+        }
+
+        .add {
+            background: green;
+        }
+
+		.flexBox {
+			display: -webkit-box; /*Safari*/
+			display: -moz-box; /*Firefox*/
+			display: -ms-flexbox; /*IE*/
+			display: -webkit-flex; /*Chrome*/
+			display: flex;
+			-webkit-box-align: center;
+			-moz-box-align: center;
+			-ms-flex-align: center;
+			-webkit-align-items: center;
+			align-items: center;
+			-webkit-box-pack: center;
+			-moz-box-pack: center;
+			-ms-flex-pack: center;
+			-webkit-justify-content: center;
+			justify-content: center;
+		}
+		#boxWrap{
+			margin:20px 0;
+			width:100%;
+			height:500px;
+		}
+		#texta,#textb,#result  {
+			width:50%;
+			height:100%;
+			overflow:scroll;
+			float:left;
+		}
+		#result{width:100%;height:500px;}
+    </style>
+</head>
+<body>
+<div class="flexbox">
+	<label for="fileA">请选择新文件</label><input name="fileA" id="fileA" type="file" />
+	<label for="fileB">请选择旧文件</label><input name="fileB" id="fileB" type="file" />
+</div>
+<div class="flexbox">
+	<button style="margin:0 auto" id="compare"> 开始对比 </button>
+</div>
+
+<div id="boxWrap">
+	<div id="texta">
+		
+	</div>
+	<div id="textb">
+		
+	</div>
+</div>
+<div id="result">
+
+</div>
+</body>
+
+<script>
+	let textA = "",textB = "";
+	document.getElementById('fileA').addEventListener('change', function selectedFileChanged() {
+	  if (this.files.length === 0) {
+		console.log('请选择文件！');
+		return;
+	  }
+
+	  const reader = new FileReader();
+	  reader.onload = function fileReadCompleted() {
+		// 当读取完成时，内容只在`reader.result`中
+		$("#texta").html("<pre>"+reader.result+"</pre>");
+		textA = reader.result;
+	  };
+	  reader.readAsText(this.files[0]);
+	});
+	document.getElementById('fileB').addEventListener('change', function selectedFileChanged() {
+	  if (this.files.length === 0) {
+		console.log('请选择文件！');
+		return;
+	  }
+
+	  const reader = new FileReader();
+	  reader.onload = function fileReadCompleted() {
+		// 当读取完成时，内容只在`reader.result`中
+		$("#textb").html("<pre>"+reader.result+"</pre>");
+		textB = reader.result;
+	  };
+	  reader.readAsText(this.files[0]);
+	});
+
+	$("#compare").click(function(){
+		if(textA != "" && textB != ""){
+			compare(textA,textB);
+		}
+	});
+
+    function compare(textA, textB) {
+        let result = [],
+            aResult = [],
+            bResult = [],
+            alen = textA.length;
+
+        let a = [], b = [], i = 0, sliceLen = 4;
+
+
+        let aMap = {}, aAllMap = {},//hash 码表
+            mapArr = [],
+            temp = null, md = null, subMd = null,
+            mapLen = 0,
+            mapBHash = {},
+            compareTime = 0,
+            generalTime = 0;
+
+        let hashMap = {};//码表对应位置
+
+        while (i < alen) {
+            temp = textA.substr(i, sliceLen);
+            a.push(temp);
+            md = md5(temp);
+            subMd = md.substr(0, 8);
+            aAllMap[md] = aMap[subMd] = mapLen;
+            mapArr.push(subMd);
+            i += sliceLen;
+            hashMap[subMd] = md
+            mapLen++;
+        }
+
+
+        function getMapBHash(textB, start, sliceLen) {
+            if (mapBHash.hasOwnProperty(start)) {
+                return mapBHash[start]
+            }
+            let subStrI = textB.substr(start, sliceLen)
+            mapBHash[start] = md5(subStrI)
+            generalTime++;
+            return mapBHash[start]
+        }
+
+
+        i = 0;
+        let BHash = null, BAllHash = null;
+
+        let startIndex = 0, tempIndex = 0, blen = textB.length,
+            sourceHash = "";
+
+        let delStartIndex = -1, isOld = false;
+
+        while (i < mapLen) {
+            isOld = false;
+            sourceHash = hashMap[mapArr[i]]
+            startIndex = tempIndex
+            while (startIndex < blen) {
+                BHash = getMapBHash(textB, startIndex, sliceLen)
+                compareTime ++;
+                if (BHash == sourceHash) {
+                    isOld = true;
+                    console.log(textB.substr(startIndex, sliceLen) + " like " + a[aAllMap[sourceHash]]);
+
+                    console.log(delStartIndex, startIndex - 1);
+                    if (delStartIndex != -1 && delStartIndex <= startIndex - 1) {
+                        result.push({
+                            "v": textB.substring(delStartIndex, startIndex),
+                            "type": "del"
+                        });
+
+                        bResult.push({
+                            "v": textB.substring(delStartIndex, startIndex),
+                            "type": "del"
+                        });
+                    }
+                    result.push({
+                        "v": textB.substr(startIndex, sliceLen),
+                        "type": "old"
+                    });
+
+                    bResult.push({
+                        "v": textB.substr(startIndex, sliceLen),
+                        "type": "old"
+                    });
+                    startIndex += sliceLen;
+                    tempIndex = startIndex;
+                    delStartIndex = -1;
+
+                    break;
+                } else {
+                    //  console.log(textB.substr(startIndex, sliceLen) + " not like " + a[aAllMap[sourceHash]]);
+                    if (delStartIndex == -1) {
+                        delStartIndex = startIndex;
+                    }
+                    startIndex++;
+
+                }
+            }
+
+            if (isOld) {
+                aResult.push({
+                    "v": a[aAllMap[sourceHash]],
+                    "type": "old"
+                });
+            } else {
+                aResult.push({
+                    "v": a[aAllMap[sourceHash]],
+                    "type": "add"
+                });
+                result.push({
+                    "v": a[aAllMap[sourceHash]],
+                    "type": "add"
+                });
+            }
+            i++
+        }
+
+        console.log("general times :" + generalTime);
+        console.log("compare times :" + compareTime);
+        console.log(aAllMap);
+        console.log(a);
+        console.log(hashMap);
+        console.log(mapArr);
+        console.log(result);
+
+        var html = "";
+        for (var resultIndex = 0, len = result.length; resultIndex < len; resultIndex++) {
+            switch (result[resultIndex].type) {
+                case "del": {
+                    html += "<span class='del'>" + result[resultIndex].v + "</span>";
+                }
+                    break;
+                case "add": {
+                    html += "<span class='add'>" + result[resultIndex].v + "</span>";
+                }
+                    break;
+                case "old": {
+                    html += "<span class='old'>" + result[resultIndex].v + "</span>";
+                }
+                    break;
+            }
+        }
+        $("#result").html("<pre>"+html+"</pre>");
+
+        var aHtml = "";
+        for (var aResultIndex = 0, aLen = aResult.length; aResultIndex < aLen; aResultIndex++) {
+            switch (aResult[aResultIndex].type) {
+                case "add": {
+                    aHtml += "<span class='add'>" + aResult[aResultIndex].v + "</span>";
+                }
+                    break;
+                case "old": {
+                    aHtml += "<span class='old'>" + aResult[aResultIndex].v + "</span>";
+                }
+                    break;
+            }
+        }
+        $("#texta").html("<pre>"+aHtml+"</pre>");
+
+        var bHtml = "";
+        for (var bResultIndex = 0, bLen = bResult.length; bResultIndex < bLen; bResultIndex++) {
+            switch (bResult[bResultIndex].type) {
+                case "del": {
+                    bHtml += "<span class='del_a'>" + bResult[bResultIndex].v + "</span>";
+                }
+                    break;
+                case "old": {
+                    bHtml += "<span class='old'>" + bResult[bResultIndex].v + "</span>";
+                }
+                    break;
+            }
+        }
+        $("#textb").html("<pre>"+bHtml+"</pre>");
+
+    };
+
+
+</script>
+</html>
