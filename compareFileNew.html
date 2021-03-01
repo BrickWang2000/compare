@@ -70,6 +70,18 @@
 </body>
 
 <script>
+	var topIndex = 0
+	$("#texta,#textb,#result").scroll(function(e){
+		var _this = $(this);
+		topIndex = _this.scrollTop();
+		setTimeout(function(){
+			$("#texta").scrollTop(topIndex);
+			$("#textb").scrollTop(topIndex);
+			$("#result").scrollTop(topIndex);
+			e.stopPropagation();
+		},100);
+	});
+	
 	let textA = "",textB = "";
 	document.getElementById('fileA').addEventListener('change', function selectedFileChanged() {
 	  if (this.files.length === 0) {
@@ -219,6 +231,10 @@
 					resultB.unshift({
 						"val": str2[m - 1],
 						"type": "add"
+					});
+					resultA.unshift({
+						"val": "",
+						"type": "old"
 					});
 					result.unshift({
 						"val": str2[m - 1],
